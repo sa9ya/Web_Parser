@@ -27,6 +27,7 @@ public class Main {
     private static final String password = "";
     static Document doc;
     static String[][] a, w, hrefs;
+    static String[] product;
     public static List<String> allLinks = new ArrayList<String>();
 
     private static Connection con;
@@ -41,7 +42,7 @@ public class Main {
             e.printStackTrace();
         }
         //System.out.println(doc);
-        Elements newsHeadlines = doc.select(".b-product-groups-gallery__item");
+        Elements newsHeadlines = doc.select(".b-product-groups-gallery .b-product-groups-gallery__item");
         int i=0;
         a = new String[newsHeadlines.size()][5];
         for(Element cart : newsHeadlines) {
@@ -52,9 +53,9 @@ public class Main {
             a[i][1] = cart.select("img.b-product-groups-gallery__image").attr("src").split("/")[l-1];          //get category image
             a[i][2] = URL+cart.select(".b-product-groups-gallery__title-link").attr("href");//get category url
             a[i][3] = cart.select("img.b-product-groups-gallery__image").attr("src");
-            System.out.println(a[i][0]);
+            //System.out.println(a[i][0]);
             //loadImage(a[i][3]);
-           // int category_id = addCategory(a[i]);
+            // int category_id = addCategory(a[i]);
 
 
             //SUBCATEGORY
@@ -65,7 +66,7 @@ public class Main {
                 e.printStackTrace();
             }
 
-            Elements subcategories = doc.select(".b-product-groups-gallery__item");
+            Elements subcategories = doc.select(".b-product-groups-gallery .b-product-groups-gallery__item");
             int q=0;
             w = new String[subcategories.size()][5];
             for(Element subcat : subcategories) {
@@ -81,10 +82,10 @@ public class Main {
                 if(bnbn.length > 1) {
                     w[q][3] = subcat.select(".b-product-groups-gallery__image").attr("longdesc");
                 }
-                System.out.println(w[q][0]);
+                //System.out.println(w[q][0]);
                 //loadImage(w[q][3]);
 
-               // addSubCategory(w[q], category_id);
+                // int subcategory_id = addSubCategory(w[q], category_id);
 
 
                 //PRODUCTS
@@ -103,12 +104,12 @@ public class Main {
                     if(pagination == t) {
                         break;
                     }
-                   hrefs[i][0] = prods.attr("href");
-                    System.out.println(hrefs[i][0]);
+                    hrefs[i][0] = prods.attr("href");
+                    //System.out.println(hrefs[i][0]);
                     t++;
                 }
 
-                Elements prodshrefs = doc.select(".b-product-line");
+                Elements prodshrefs = doc.select(".b-layout__clear .b-product-line");
 
                 List<String> hr = new ArrayList<String>();
                 int poi =0;
@@ -128,16 +129,48 @@ public class Main {
 
                         //hr.add(doc.select(".b-product-line").select(".b-centered-image").attr("href"));
 
-                        Elements pol = doc.select(".b-product-line");
+                        Elements pol = doc.select(".b-layout__clear .b-product-line");
 
                         for(Element po : pol) {
                             hr.add(po.select(".b-centered-image").attr("href"));
                         }
                     }
                 }
-
+                int opop = 0;
+                product = new String[7];
                 for(String h : hr) {
-                    System.out.println(pio++);
+                    //System.out.println(pio++);
+
+                    try {
+                        doc = Jsoup.connect(h).get();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    product[0] = doc.select("h1.b-title").html();
+                    product[1] = doc.select(".b-product__sku").html().split(" ")[1];
+                    product[2] = "<div class='characteristics'><table>"+doc.select(".b-product-info").html()+"</table></div>";
+
+                    //product[3] = doc.select("tbody tr:nth-child(7) td:nth-child(2)").html();  // Площа приміщення
+
+                    if(doc.select("tbody tr:nth-child(7) td:nth-child(2)").html().split(" ")[1].equals("кв.м")) {
+                        product[3] = doc.select("tbody tr:nth-child(7) td:nth-child(2)").html();
+                    } else if(doc.select("tbody tr:nth-child(6) td:nth-child(2)").html().split(" ")[1].equals("кв.м")) {
+                        product[3] = doc.select("tbody tr:nth-child(6) td:nth-child(2)").html();
+                    } else if(doc.select("tbody tr:nth-child(8) td:nth-child(2)").html().split(" ")[1].equals("кв.м")) {
+                        product[3] = doc.select("tbody tr:nth-child(8) td:nth-child(2)").html();
+                    } else {
+                        product[3] = null;
+                    }
+
+                    product[4] = doc.select("tbody tr:nth-child(3) td:nth-child(2)").html();  // Назначение кондиціонера
+                    product[5] = doc.select("tbody tr:nth-child(6) td:nth-child(2)").html();  // Режим работы кондиционера
+                    product[6] = doc.select(".b-product__image").attr("href"); // Фото
+                    //System.out.println(product[6]);
+
+                    //addProduct(product, subcategory, category);
+
+                    opop++;
                 }
 
 
@@ -166,12 +199,44 @@ public class Main {
         }
     }
 
+    public static int addProduct(String[] a) {
+        int category_id = 0;
+        try {
+            Class.forName("com.mysql.jdbc.Driver");
+            con = DriverManager.getConnection(url, user, password);
+            stmt = con.createStatement();
+
+            stmt.executeUpdate("INSERT INTO oc_product (model, sku, upc, ean, jan, isbn, mpn, location, quantity, stock_status_id, image, manufacturer_id, price, tax_class_id, date_available, weight, weight_class_id, length_class_id, subtract, status, date_added, date_modified, iframe) VALUES ()" , Statement.RETURN_GENERATED_KEYS);
+            ResultSet rs = stmt.getGeneratedKeys();
+            rs.next();
+            category_id = rs.getInt(1);
+
+            //System.out.println();
+        } catch (ClassNotFoundException var23) {
+            var23.printStackTrace();
+        } catch (SQLException var24) {
+            var24.printStackTrace();
+        } finally {
+            try {
+                con.close();
+            } catch (SQLException var22) {
+                var22.printStackTrace();
+            }
+            try {
+                stmt.close();
+            } catch (SQLException var21) {
+                var21.printStackTrace();
+            }
+        }
+        return category_id;
+    }
+
     private static Image loadImage(String imgURL) {
         try {
             InputStream in = (new URL(imgURL)).openStream();
             Throwable var2 = null;
 
-System.out.println("C:\\OSPanel\\domains\\HOLODODO\\image\\catalog\\cond\\" + imgURL.substring(33, imgURL.length()));
+            System.out.println("C:\\OSPanel\\domains\\HOLODODO\\image\\catalog\\cond\\" + imgURL.substring(33, imgURL.length()));
             try {
                 Files.copy(in, Paths.get("C:\\OSPanel\\domains\\HOLODODO\\image\\catalog\\cond\\" + imgURL.substring(33, imgURL.length())), new CopyOption[0]);
             } catch (Throwable var12) {
