@@ -1,0 +1,315 @@
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
+import javax.print.Doc;
+import java.awt.*;
+import java.io.Console;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.file.CopyOption;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Created by sa9ya on 16.03.2017.
+ */
+public class Main {
+    static String SITE_URL = "https://climatemakers.com.ua/product_list";
+    static String URL = "https://climatemakers.com.ua";
+    private static final String url = "jdbc:mysql://localhost/PARSER";
+    private static final String user = "root";
+    private static final String password = "";
+    static Document doc;
+    static String[][] a, w, hrefs;
+    public static List<String> allLinks = new ArrayList<String>();
+
+    private static Connection con;
+    private static Statement stmt;
+    private static ResultSet rs;
+
+    public static void main(String[] args) throws IOException, SQLException, ClassNotFoundException {
+        int pio = 0;
+        try {
+            doc = Jsoup.connect(SITE_URL).get();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        //System.out.println(doc);
+        Elements newsHeadlines = doc.select(".b-product-groups-gallery__item");
+        int i=0;
+        a = new String[newsHeadlines.size()][5];
+        for(Element cart : newsHeadlines) {
+
+            // CATEGORY
+            a[i][0] = cart.select(".b-product-groups-gallery__title-link").html();                   //get category name
+            int l = cart.select("img.b-product-groups-gallery__image").attr("src").split("/").length;
+            a[i][1] = cart.select("img.b-product-groups-gallery__image").attr("src").split("/")[l-1];          //get category image
+            a[i][2] = URL+cart.select(".b-product-groups-gallery__title-link").attr("href");//get category url
+            a[i][3] = cart.select("img.b-product-groups-gallery__image").attr("src");
+            System.out.println(a[i][0]);
+            //loadImage(a[i][3]);
+           // int category_id = addCategory(a[i]);
+
+
+            //SUBCATEGORY
+
+            try {
+                doc = Jsoup.connect(a[i][2]).get();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            Elements subcategories = doc.select(".b-product-groups-gallery__item");
+            int q=0;
+            w = new String[subcategories.size()][5];
+            for(Element subcat : subcategories) {
+
+                w[q][0] = subcat.select(".b-product-groups-gallery__title-link").html();                   //get category name
+                int lsc = subcat.select("img.b-product-groups-gallery__image").attr("src").split("/").length;
+                w[q][1] = subcat.select("img.b-product-groups-gallery__image").attr("src").split("/")[lsc-1];          //get category image
+                w[q][2] = URL+subcat.select(".b-product-groups-gallery__title-link").attr("href");//get category url
+
+
+                w[q][3] = subcat.select(".b-product-groups-gallery__image").attr("src");
+                String[] bnbn = w[q][3].split("empty");
+                if(bnbn.length > 1) {
+                    w[q][3] = subcat.select(".b-product-groups-gallery__image").attr("longdesc");
+                }
+                System.out.println(w[q][0]);
+                //loadImage(w[q][3]);
+
+               // addSubCategory(w[q], category_id);
+
+
+                //PRODUCTS
+
+                try {
+                    doc = Jsoup.connect(w[q][2]).get();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                Elements hre = doc.select(".b-pager__link");
+                int pagination = (hre.size()-1 > 0) ? hre.size()-1: 0;
+                int t=0;
+                hrefs = new String[pagination][1];
+                for(Element prods : hre) {
+                    if(pagination == t) {
+                        break;
+                    }
+                   hrefs[i][0] = prods.attr("href");
+                    System.out.println(hrefs[i][0]);
+                    t++;
+                }
+
+                Elements prodshrefs = doc.select(".b-product-line");
+
+                List<String> hr = new ArrayList<String>();
+                int poi =0;
+                for(Element prodhref : prodshrefs) {
+                    //System.out.println(prodhref.select(".b-centered-image").attr("href"));
+                    hr.add(prodhref.select(".b-centered-image").attr("href"));
+
+                }
+                if(pagination>0) {
+                    for(String href : hrefs[0]) {
+
+                        try {
+                            doc = Jsoup.connect(URL+href).get();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+
+                        //hr.add(doc.select(".b-product-line").select(".b-centered-image").attr("href"));
+
+                        Elements pol = doc.select(".b-product-line");
+
+                        for(Element po : pol) {
+                            hr.add(po.select(".b-centered-image").attr("href"));
+                        }
+                    }
+                }
+
+                for(String h : hr) {
+                    System.out.println(pio++);
+                }
+
+
+
+
+
+
+
+
+
+
+
+
+                //System.out.println(w[q][0]+' '+w[q][1]+' '+w[q][2]);
+
+
+
+
+                q++;
+            }
+
+
+
+
+            i++;
+        }
+    }
+
+    private static Image loadImage(String imgURL) {
+        try {
+            InputStream in = (new URL(imgURL)).openStream();
+            Throwable var2 = null;
+
+System.out.println("C:\\OSPanel\\domains\\HOLODODO\\image\\catalog\\cond\\" + imgURL.substring(33, imgURL.length()));
+            try {
+                Files.copy(in, Paths.get("C:\\OSPanel\\domains\\HOLODODO\\image\\catalog\\cond\\" + imgURL.substring(33, imgURL.length())), new CopyOption[0]);
+            } catch (Throwable var12) {
+                var2 = var12;
+                throw var12;
+            } finally {
+                if (in != null) {
+                    if (var2 != null) {
+                        try {
+                            in.close();
+                        } catch (Throwable var11) {
+                            var2.addSuppressed(var11);
+                        }
+                    } else {
+                        in.close();
+                    }
+                }
+
+            }
+        } catch (IOException var14) {
+            ;
+        }
+
+        return null;
+    }
+
+    public static int addCategory(String[] a) {
+        int category_id = 0;
+        try {
+            Class.forName("com.mysql.jdbc.Driver");
+            con = DriverManager.getConnection(url, user, password);
+            stmt = con.createStatement();
+            //stmt.executeUpdate("INSERT INTO oc_category (image, top, `column`, status, date_added, date_modified) VALUES ('catalog/cond/"+a[1]+"', '1', '1', '1', NOW(), NOW())");
+            //System.out.println(a[1]);
+            stmt.executeUpdate("INSERT INTO oc_category (image, parent_id, top, `column`, status, date_added, date_modified) VALUES ('catalog/cond/"+a[1]+"', '131', '1', '1', '1', NOW(), NOW())" , Statement.RETURN_GENERATED_KEYS);
+            ResultSet rs = stmt.getGeneratedKeys();
+            rs.next();
+            category_id = rs.getInt(1);
+
+            stmt.executeUpdate("INSERT INTO oc_category_description (category_id, language_id, `name`, description, meta_title, meta_description, meta_keyword) VALUES ("+category_id+", '2', '"+a[0]+"', '&lt;p&gt;&lt;br&gt;&lt;/p&gt;', '"+a[0]+"', '', '')");
+
+            stmt.executeUpdate("INSERT INTO oc_category_path (category_id, path_id, `level`) VALUES ("+category_id+", '131', '0')");
+
+            stmt.executeUpdate("INSERT INTO oc_category_to_layout (category_id, store_id, layout_id) VALUES ("+category_id+", '0', '0')");
+            stmt.executeUpdate("INSERT INTO oc_category_to_store (category_id, store_id) VALUES ("+category_id+", '0')");
+
+
+
+            //System.out.println();
+        } catch (ClassNotFoundException var23) {
+            var23.printStackTrace();
+        } catch (SQLException var24) {
+            var24.printStackTrace();
+        } finally {
+            try {
+                con.close();
+            } catch (SQLException var22) {
+                var22.printStackTrace();
+            }
+
+            try {
+                stmt.close();
+            } catch (SQLException var21) {
+                var21.printStackTrace();
+            }
+
+
+
+        }
+        return category_id;
+    }
+
+    public static void addSubCategory(String[] a, int category_id) {
+        try {
+            Class.forName("com.mysql.jdbc.Driver");
+            con = DriverManager.getConnection(url, user, password);
+            stmt = con.createStatement();
+            //stmt.executeUpdate("INSERT INTO oc_category (image, top, `column`, status, date_added, date_modified) VALUES ('catalog/cond/"+a[1]+"', '1', '1', '1', NOW(), NOW())");
+            //System.out.println(a[1]);
+            stmt.executeUpdate("INSERT INTO oc_category (image, parent_id, top, `column`, status, date_added, date_modified) VALUES ('catalog/cond/"+a[1]+"', "+category_id+", '1', '1', '1', NOW(), NOW())" , Statement.RETURN_GENERATED_KEYS);
+            ResultSet rs = stmt.getGeneratedKeys();
+            rs.next();
+            int subcategory_id = rs.getInt(1);
+
+            stmt.executeUpdate("INSERT INTO oc_category_description (category_id, language_id, `name`, description, meta_title, meta_description, meta_keyword) VALUES ("+subcategory_id+", '2', '"+a[0]+"', '&lt;p&gt;&lt;br&gt;&lt;/p&gt;', '"+a[0]+"', '', '')");
+
+            stmt.executeUpdate("INSERT INTO oc_category_path (category_id, path_id, `level`) VALUES ("+subcategory_id+", '131', '0')");
+
+            stmt.executeUpdate("INSERT INTO oc_category_path (category_id, path_id, `level`) VALUES ("+subcategory_id+", "+category_id+", '1')");
+
+            stmt.executeUpdate("INSERT INTO oc_category_path (category_id, path_id, `level`) VALUES ("+subcategory_id+", "+subcategory_id+", '2')");
+
+            stmt.executeUpdate("INSERT INTO oc_category_to_layout (category_id, store_id, layout_id) VALUES ("+subcategory_id+", '0', '0')");
+            stmt.executeUpdate("INSERT INTO oc_category_to_store (category_id, store_id) VALUES ("+subcategory_id+", '0')");
+
+
+
+            //System.out.println();
+        } catch (ClassNotFoundException var23) {
+            var23.printStackTrace();
+        } catch (SQLException var24) {
+            var24.printStackTrace();
+        } finally {
+            try {
+                con.close();
+            } catch (SQLException var22) {
+                var22.printStackTrace();
+            }
+
+            try {
+                stmt.close();
+            } catch (SQLException var21) {
+                var21.printStackTrace();
+            }
+
+
+
+        }
+    }
+}
+
+/*
+Наприклад в тебе є масив:
+mas[0] = '<a href=""></a>';
+mas[1] = '<a href=""></a>';
+mas[2] = '<a href=""></a>';
+mas[3] = '<a href=""></a>';
+mas[4] = '<a href=""></a>';
+mas[5] = '<a href=""></a>';
+mas[6] = '<a href=""></a>';
+Тобі потрібно добавити дані.
+Для того щоб кудись добавити потрібно розбити кожен елемент масиву на ще два.
+Там є метод split здається.
+for(int i =0, a=mas.length(); i<=a; i++) {
+    masNumber2 = mas[i].split('</a>');
+    Потім добавляєш дані.
+        mas[i] = masNumber2[0]+yourData+masNumber[1];
+    І методом виводиш.
+        System.out.println(mas[i]);
+}
+*/
